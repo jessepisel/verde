@@ -62,11 +62,8 @@ grid_full = chain.grid(
     dims=["latitude", "longitude"],
     data_names=["velocity"],
 )
-grid = vd.distance_mask(
-    (data.longitude, data.latitude),
-    maxdist=5 * spacing * 111e3,
-    grid=grid_full,
-    projection=projection,
+grid = vd.convexhull_mask(
+    (data.longitude, data.latitude), grid=grid_full, projection=projection
 )
 
 fig, axes = plt.subplots(
@@ -107,5 +104,4 @@ cb.set_label("vertical velocity [mm/yr]")
 ax.scatter(*coordinates, c="black", s=0.5, alpha=0.1, transform=crs)
 vd.datasets.setup_california_gps_map(ax, region=region)
 ax.coastlines()
-plt.tight_layout()
 plt.show()

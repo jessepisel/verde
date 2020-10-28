@@ -5,11 +5,19 @@ from unittest import mock
 
 import numpy as np
 import numpy.testing as npt
+import xarray as xr
 from scipy.spatial import cKDTree  # pylint: disable=no-name-in-module
 import pytest
 
 from ..coordinates import grid_coordinates
-from ..utils import parse_engine, dummy_jit, kdtree
+from ..utils import (
+    parse_engine,
+    dummy_jit,
+    kdtree,
+    grid_to_table,
+    partition_by_sum,
+    make_xarray_grid,
+)
 from .. import utils
 
 
@@ -52,3 +60,155 @@ def test_kdtree():
         npt.assert_allclose(dist, 0.1)
         if not use_pykdtree:
             assert isinstance(tree, cKDTree)
+
+
+def test_grid_to_table_order():
+    "Check that coordinates are in the right order when converting to tables"
+    lon, lat = grid_coordinates(region=(1, 10, -10, -1), shape=(3, 4))
+    data = lon ** 2
+    # If the DataArray is created with coords in an order that doesn't match
+    # the dims (which is valid), we were getting it wrong because we were
+    # relying on the order of the coords instead of dims. This test would have
+    # caught that bug.
+    grid = xr.DataArray(
+        data=data,
+        coords={"longitude": lon[0, :], "latitude": lat[:, 0]},
+        dims=("latitude", "longitude"),
+    ).to_dataset(name="field")
+    table = grid_to_table(grid)
+    true_lat = [-10, -10, -10, -10, -5.5, -5.5, -5.5, -5.5, -1, -1, -1, -1]
+    true_lon = [1, 4, 7, 10, 1, 4, 7, 10, 1, 4, 7, 10]
+    true_field = [1, 16, 49, 100, 1, 16, 49, 100, 1, 16, 49, 100]
+    npt.assert_allclose(true_lat, table.latitude)
+    npt.assert_allclose(true_lon, table.longitude)
+    npt.assert_allclose(true_field, table.field)
+
+
+def test_partition_by_sum_fails_size():
+    "Should raise an exception if given more parts than elements."
+    with pytest.raises(ValueError) as error:
+        partition_by_sum(np.arange(10), 11)
+    assert "array of size 10 into 11 parts" in str(error)
+
+
+def test_partition_by_sum_fails_no_partitions():
+    "Should raise an exception if could not find unique partition points"
+    with pytest.raises(ValueError) as error:
+        partition_by_sum(np.arange(10), 8)
+    assert "Could not find partition points" in str(error)
+
+
+def test_make_xarray_grid():
+    """
+    Check if xarray.Dataset is correctly created
+    """
+    region = (-10, -5, 6, 10)
+    spacing = 1
+    coordinates = grid_coordinates(region, spacing=spacing)
+    data = np.ones_like(coordinates[0])
+    grid = make_xarray_grid(coordinates, data, data_names="dummy")
+    npt.assert_allclose(grid.easting, [-10, -9, -8, -7, -6, -5])
+    npt.assert_allclose(grid.northing, [6, 7, 8, 9, 10])
+    npt.assert_allclose(grid.dummy, 1)
+    assert grid.dummy.shape == (5, 6)
+    # Change dims
+    grid = make_xarray_grid(
+        coordinates, data, data_names="dummy", dims=("latitude", "longitude")
+    )
+    npt.assert_allclose(grid.longitude, [-10, -9, -8, -7, -6, -5])
+    npt.assert_allclose(grid.latitude, [6, 7, 8, 9, 10])
+    npt.assert_allclose(grid.dummy, 1)
+    assert grid.dummy.shape == (5, 6)
+
+
+def test_make_xarray_grid_multiple_data():
+    """
+    Check if xarray.Dataset with multiple data is correctly created
+    """
+    region = (-10, -5, 6, 10)
+    spacing = 1
+    coordinates = grid_coordinates(region, spacing=spacing)
+    data_arrays = tuple(i * np.ones_like(coordinates[0]) for i in range(1, 4))
+    data_names = list("data_{}".format(i) for i in range(1, 4))
+    dataset = make_xarray_grid(coordinates, data_arrays, data_names=data_names)
+    npt.assert_allclose(dataset.easting, [-10, -9, -8, -7, -6, -5])
+    npt.assert_allclose(dataset.northing, [6, 7, 8, 9, 10])
+    for i in range(1, 4):
+        npt.assert_allclose(dataset["data_{}".format(i)], i)
+        assert dataset["data_{}".format(i)].shape == (5, 6)
+
+
+def test_make_xarray_grid_extra_coords():
+    """
+    Check if xarray.Dataset with extra coords is correctly created
+    """
+    region = (-10, -5, 6, 10)
+    spacing = 1
+    extra_coords = [1, 2]
+    coordinates = grid_coordinates(region, spacing=spacing, extra_coords=extra_coords)
+    data = np.ones_like(coordinates[0])
+    dataset = make_xarray_grid(
+        coordinates,
+        data,
+        data_names="dummy",
+        extra_coords_names=["upward", "time"],
+    )
+    npt.assert_allclose(dataset.easting, [-10, -9, -8, -7, -6, -5])
+    npt.assert_allclose(dataset.northing, [6, 7, 8, 9, 10])
+    npt.assert_allclose(dataset.upward, 1)
+    npt.assert_allclose(dataset.time, 2)
+    npt.assert_allclose(dataset.dummy, 1)
+    assert dataset.dummy.shape == (5, 6)
+    assert dataset.upward.shape == (5, 6)
+    assert dataset.time.shape == (5, 6)
+
+
+def test_make_xarray_grid_invalid_names():
+    """
+    Check if errors are raise after invalid data names
+    """
+    region = (-10, -5, 6, 10)
+    spacing = 1
+    coordinates = grid_coordinates(region, spacing=spacing)
+    # Single data, multiple data_name
+    data = np.ones_like(coordinates[0])
+    with pytest.raises(ValueError):
+        make_xarray_grid(coordinates, data, data_names=["bla_1", "bla_2"])
+    # data_names equal to None
+    with pytest.raises(ValueError):
+        make_xarray_grid(coordinates, data, data_names=None)
+    # Multiple data, single data_name
+    data = tuple(i * np.ones_like(coordinates[0]) for i in (1, 2))
+    with pytest.raises(ValueError):
+        make_xarray_grid(coordinates, data, data_names="blabla")
+
+
+def test_make_xarray_grid_invalid_extra_coords():
+    """
+    Check if errors are raise after invalid extra coords
+    """
+    region = (-10, -5, 6, 10)
+    spacing = 1
+    # No extra coords, extra_coords_name should be ignored
+    coordinates = grid_coordinates(region, spacing=spacing)
+    data = np.ones_like(coordinates[0])
+    make_xarray_grid(coordinates, data, data_names="dummy", extra_coords_names="upward")
+    # Single extra coords, extra_coords_name equal to None
+    coordinates = grid_coordinates(region, spacing=spacing, extra_coords=1)
+    data = np.ones_like(coordinates[0])
+    with pytest.raises(ValueError):
+        make_xarray_grid(coordinates, data, data_names="dummy", extra_coords_names=None)
+    # Multiple extra coords, single extra_coords_name as a str
+    coordinates = grid_coordinates(region, spacing=spacing, extra_coords=[1, 2])
+    data = np.ones_like(coordinates[0])
+    with pytest.raises(ValueError):
+        make_xarray_grid(
+            coordinates, data, data_names="dummy", extra_coords_names="upward"
+        )
+    # Multiple extra coords, multiple extra_coords_name but not equal
+    coordinates = grid_coordinates(region, spacing=spacing, extra_coords=[1, 2, 3])
+    data = np.ones_like(coordinates[0])
+    with pytest.raises(ValueError):
+        make_xarray_grid(
+            coordinates, data, data_names="dummy", extra_coords_names=["upward", "time"]
+        )

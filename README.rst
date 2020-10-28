@@ -130,7 +130,7 @@ What could you possibly offer?
 We assure you that the little voice in your head is wrong.
 
 **Being a contributor doesn't just mean writing code**.
-Equality important contributions include:
+Equally important contributions include:
 writing or proof-reading documentation, suggesting or implementing tests, or
 even giving feedback about the project (including giving feedback about the
 contribution process).
@@ -159,6 +159,8 @@ Documentation for other versions
 * `Development <http://www.fatiando.org/verde/dev>`__ (reflects the *master* branch on
   Github)
 * `Latest release <http://www.fatiando.org/verde/latest>`__
+* `v1.5.0 <http://www.fatiando.org/verde/v1.5.0>`__
+* `v1.4.0 <http://www.fatiando.org/verde/v1.4.0>`__
 * `v1.3.0 <http://www.fatiando.org/verde/v1.3.0>`__
 * `v1.2.0 <http://www.fatiando.org/verde/v1.2.0>`__
 * `v1.1.0 <http://www.fatiando.org/verde/v1.1.0>`__

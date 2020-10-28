@@ -7,14 +7,15 @@ from .coordinates import (
     grid_coordinates,
     inside,
     block_split,
+    rolling_window,
+    expanding_window,
     profile_coordinates,
     get_region,
     pad_region,
-    project_region,
     longitude_continuity,
 )
-from .mask import distance_mask
-from .utils import variance_to_weights, maxabs, grid_to_table
+from .mask import distance_mask, convexhull_mask
+from .utils import variance_to_weights, maxabs, grid_to_table, make_xarray_grid
 from .io import load_surfer
 from .distances import median_distance
 from .blockreduce import BlockReduce, BlockMean
@@ -22,8 +23,14 @@ from .scipygridder import ScipyGridder
 from .trend import Trend
 from .chain import Chain
 from .spline import Spline, SplineCV
-from .model_selection import cross_val_score, train_test_split
+from .model_selection import (
+    cross_val_score,
+    train_test_split,
+    BlockShuffleSplit,
+    BlockKFold,
+)
 from .vector import Vector, VectorSpline2D
+from .projections import project_region, project_grid
 
 
 def test(doctest=True, verbose=True, coverage=False, figures=True):

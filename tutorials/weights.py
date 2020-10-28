@@ -53,7 +53,6 @@ def plot_data(coordinates, velocity, weights, title_data, title_weights):
     )
     plt.colorbar(pc, ax=ax, orientation="horizontal", pad=0.05)
     vd.datasets.setup_california_gps_map(ax)
-    plt.tight_layout()
     plt.show()
 
 
@@ -244,8 +243,10 @@ grid = spline.grid(
     spacing=spacing,
     projection=projection,
     dims=["latitude", "longitude"],
-    data_names=["velocity"],
+    data_names="velocity",
 )
+# Avoid showing interpolation outside of the convex hull of the data points.
+grid = vd.convexhull_mask(coordinates, grid=grid, projection=projection)
 
 ########################################################################################
 # Calculate an unweighted spline as well for comparison.
@@ -260,7 +261,10 @@ grid_unweighted = spline_unweighted.grid(
     spacing=spacing,
     projection=projection,
     dims=["latitude", "longitude"],
-    data_names=["velocity"],
+    data_names="velocity",
+)
+grid_unweighted = vd.convexhull_mask(
+    coordinates, grid=grid_unweighted, projection=projection
 )
 
 ########################################################################################
@@ -300,5 +304,4 @@ plt.colorbar(pc, ax=ax, orientation="horizontal", pad=0.05).set_label("m/yr")
 ax.plot(data.longitude, data.latitude, ".k", markersize=0.1, transform=crs)
 ax.coastlines()
 vd.datasets.setup_california_gps_map(ax)
-plt.tight_layout()
 plt.show()

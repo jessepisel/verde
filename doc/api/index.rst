@@ -45,6 +45,8 @@ Model Selection
 
     train_test_split
     cross_val_score
+    BlockShuffleSplit
+    BlockKFold
 
 Coordinate Manipulation
 -----------------------
@@ -57,9 +59,28 @@ Coordinate Manipulation
     profile_coordinates
     get_region
     pad_region
-    project_region
     inside
     block_split
+    rolling_window
+    expanding_window
+
+Projection
+----------
+
+.. autosummary::
+   :toctree: generated/
+
+    project_region
+    project_grid
+
+Masking
+-------
+
+.. autosummary::
+   :toctree: generated/
+
+    distance_mask
+    convexhull_mask
 
 Utilities
 ---------
@@ -69,7 +90,6 @@ Utilities
 
     test
     maxabs
-    distance_mask
     variance_to_weights
     grid_to_table
     median_distance
@@ -111,6 +131,7 @@ Base Classes and Functions
    :toctree: generated/
 
     base.BaseGridder
+    base.BaseBlockCrossValidator
     base.n_1d_arrays
     base.check_fit_input
     base.least_squares
